@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#f4f7fb">
+    <title>API Traffic | Control Room</title>
+    <style>
+        :root {
+            color-scheme: light;
+            font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            color: #172338;
+            background: #f4f7fb;
+            font-synthesis: none;
+            text-rendering: optimizeLegibility;
+            --muted: #77859a;
+            --line: #e8edf4;
+            --blue: #3977e8;
+            --green: #159873;
+            --red: #d45164;
+        }
+
+        * { box-sizing: border-box; }
+        body { margin: 0; min-width: 320px; }
+        button { font: inherit; }
+        .shell { max-width: 1440px; margin: 0 auto; padding: 30px 42px 48px; }
+        .topbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 42px; }
+        .brand { display: flex; align-items: center; gap: 11px; color: #55647a; font-size: 12px; font-weight: 750; letter-spacing: .12em; }
+        .brand-mark { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 10px; color: white; background: #3977e8; font-size: 16px; font-weight: 800; letter-spacing: 0; }
+        .live { display: inline-flex; align-items: center; gap: 9px; color: #68778c; font-size: 12px; font-weight: 650; }
+        .live-dot { width: 8px; height: 8px; border-radius: 50%; background: #22b785; box-shadow: 0 0 0 4px #e0f5ed; }
+        .logout-form { margin: 0 0 0 16px; }
+        .logout-button { padding: 8px 12px; border: 1px solid #e1e7ef; border-radius: 7px; background: white; color: #68778c; cursor: pointer; font: inherit; font-size: 11px; font-weight: 650; }
+        .logout-button:hover { border-color: #3977e8; color: #3977e8; }
+        .heading { display: flex; justify-content: space-between; align-items: end; margin-bottom: 25px; }
+        h1 { margin: 0; font-size: clamp(26px, 3vw, 34px); letter-spacing: -.04em; }
+        .subtitle { margin: 7px 0 0; color: var(--muted); font-size: 14px; }
+        .refresh { display: flex; align-items: center; gap: 8px; color: #718099; font-size: 12px; }
+        .refresh svg { width: 14px; height: 14px; }
+        .metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; margin-bottom: 20px; }
+        .card, .panel { border: 1px solid #e9edf4; border-radius: 13px; background: #fff; box-shadow: 0 3px 14px #233b5a08; }
+        .metric { min-height: 132px; padding: 20px 22px; }
+        .metric-top { display: flex; align-items: center; justify-content: space-between; color: #748197; font-size: 12px; font-weight: 620; }
+        .metric-icon { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 9px; background: #edf4ff; color: #3977e8; }
+        .metric-icon.green { background: #e9f8f2; color: #159873; }
+        .metric-icon.red { background: #fff0f1; color: #d45164; }
+        .metric-icon.violet { background: #f2efff; color: #7964d8; }
+        .metric-icon svg { width: 16px; height: 16px; }
+        .metric-value { margin-top: 13px; color: #172338; font-size: 29px; font-weight: 730; letter-spacing: -.04em; }
+        .metric-note { margin-top: 4px; color: #8995a7; font-size: 11px; }
+        .content-grid { display: grid; grid-template-columns: minmax(0, 1.65fr) minmax(280px, .85fr); gap: 20px; margin-bottom: 20px; }
+        .panel-head { display: flex; align-items: flex-start; justify-content: space-between; padding: 21px 23px 0; }
+        .panel-title { margin: 0; font-size: 14px; font-weight: 680; }
+        .panel-subtitle { margin-top: 5px; color: #8995a7; font-size: 11px; }
+        .range-label { padding: 6px 9px; border: 1px solid #e9edf4; border-radius: 7px; color: #718099; font-size: 10px; font-weight: 650; }
+        .chart-wrap { height: 245px; padding: 14px 17px 12px; }
+        #traffic-chart { width: 100%; height: 100%; overflow: visible; }
+        .chart-grid { stroke: #edf1f6; stroke-width: 1; }
+        .chart-label { fill: #99a4b4; font: 10px ui-sans-serif, system-ui, sans-serif; }
+        .chart-area { fill: url(#chart-fill); }
+        .chart-line { fill: none; stroke: #3977e8; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+        .chart-point { fill: #fff; stroke: #3977e8; stroke-width: 2; }
+        .status-content { padding: 23px; }
+        .status-summary { display: flex; justify-content: space-between; align-items: baseline; padding-bottom: 21px; border-bottom: 1px solid var(--line); }
+        .status-summary strong { font-size: 27px; letter-spacing: -.04em; }
+        .status-summary span { color: #8995a7; font-size: 11px; }
+        .status-row { display: flex; align-items: center; justify-content: space-between; margin-top: 17px; color: #65748a; font-size: 12px; }
+        .status-label { display: inline-flex; align-items: center; gap: 9px; }
+        .status-swatch { width: 8px; height: 8px; border-radius: 3px; background: var(--green); }
+        .status-swatch.redirect { background: #8a79dc; }
+        .status-swatch.client { background: #eca64b; }
+        .status-swatch.server { background: var(--red); }
+        .status-row strong { color: #26364c; font-size: 12px; font-weight: 680; }
+        .status-track { display: flex; height: 7px; gap: 3px; margin-top: 21px; overflow: hidden; border-radius: 10px; background: #eef2f7; }
+        .status-segment { min-width: 0; transition: width .3s ease; }
+        .status-success { background: #20ad82; }
+        .status-redirect { background: #8a79dc; }
+        .status-client { background: #eca64b; }
+        .status-server { background: #d45164; }
+        .recent-panel { overflow: hidden; }
+        .recent-head { padding-bottom: 18px; }
+        .table-wrap { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; text-align: left; }
+        th { padding: 11px 23px; color: #8a96a7; background: #fafbfd; font-size: 10px; font-weight: 700; letter-spacing: .055em; text-transform: uppercase; }
+        td { padding: 13px 23px; border-top: 1px solid #eff2f6; color: #68778c; font-size: 12px; white-space: nowrap; }
+        td:first-child { color: #2b3b51; font-weight: 600; }
+        .method { display: inline-block; min-width: 39px; color: #3977e8; font-size: 10px; font-weight: 750; }
+        .status-code { display: inline-flex; align-items: center; padding: 4px 7px; border-radius: 5px; background: #e9f8f2; color: #138663; font-size: 10px; font-weight: 700; }
+        .status-code.error { background: #fff0f1; color: #c7485b; }
+        .status-code.warn { background: #fff6e9; color: #b77720; }
+        .empty { padding: 34px 18px; color: #8995a7; font-size: 12px; text-align: center; }
+        .footer { padding-top: 22px; color: #9aa5b4; font-size: 10px; text-align: center; }
+        @media (max-width: 900px) {
+            .shell { padding: 25px 24px 38px; }
+            .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            .content-grid { grid-template-columns: 1fr; }
+        }
+        @media (max-width: 540px) {
+            .shell { padding: 20px 15px 30px; }
+            .topbar { margin-bottom: 30px; }
+            .heading { align-items: flex-start; gap: 14px; }
+            .refresh { padding-top: 8px; white-space: nowrap; }
+            .metrics { gap: 10px; }
+            .metric { min-height: 120px; padding: 15px; }
+            .metric-value { font-size: 24px; }
+            .panel-head { padding-left: 17px; padding-right: 17px; }
+            .chart-wrap { height: 215px; padding-right: 10px; padding-left: 10px; }
+            th, td { padding-right: 15px; padding-left: 15px; }
+        }
+    </style>
+</head>
+<body>
+<main class="shell">
+    <header class="topbar">
+        <div class="brand"><span class="brand-mark">A</span> API CONTROL ROOM</div>
+        <div class="live"><span class="live-dot"></span> LIVE MONITORING
+            <form class="logout-form" th:action="@{/logout}" method="post">
+                <button class="logout-button" type="submit">Sign out</button>
+            </form>
+        </div>
+    </header>
+
+    <section class="heading">
+        <div>
+            <h1>API traffic</h1>
+            <p class="subtitle">Request activity and service response health</p>
+        </div>
+        <div class="refresh"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20 7v5h-5M4.8 9a7.5 7.5 0 0 1 12.6-3L20 8M4 17v-5h5m10.2 3a7.5 7.5 0 0 1-12.6 3L4 16"/></svg><span id="last-updated">Connecting...</span></div>
+    </section>
+
+    <section class="metrics" aria-label="API request metrics">
+        <article class="card metric">
+            <div class="metric-top"><span>Total requests</span><span class="metric-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 5h16v14H4zM8 9h8M8 13h5"/></svg></span></div>
+            <div class="metric-value" id="total-requests">--</div><div class="metric-note">Since application startup</div>
+        </article>
+        <article class="card metric">
+            <div class="metric-top"><span>Successful requests</span><span class="metric-icon green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m5 12 4 4L19 6"/></svg></span></div>
+            <div class="metric-value" id="successful-requests">--</div><div class="metric-note">HTTP 2xx responses</div>
+        </article>
+        <article class="card metric">
+            <div class="metric-top"><span>Failed requests</span><span class="metric-icon red"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 8v5m0 3h.01M10.3 4.7 2.8 18a1.5 1.5 0 0 0 1.3 2.2h15.8a1.5 1.5 0 0 0 1.3-2.2l-7.5-13.3a1.9 1.9 0 0 0-3.4 0Z"/></svg></span></div>
+            <div class="metric-value" id="failed-requests">--</div><div class="metric-note">HTTP 4xx and 5xx responses</div>
+        </article>
+        <article class="card metric">
+            <div class="metric-top"><span>Avg. response time</span><span class="metric-icon violet"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="8.5"/><path d="M12 7v5l3 2"/></svg></span></div>
+            <div class="metric-value" id="average-time">--</div><div class="metric-note">Across tracked API requests</div>
+        </article>
+    </section>
+
+    <section class="content-grid">
+        <article class="panel">
+            <div class="panel-head">
+                <div><h2 class="panel-title">Request volume</h2><div class="panel-subtitle">API requests per minute over the last hour</div></div>
+                <span class="range-label">LAST 60 MIN</span>
+            </div>
+            <div class="chart-wrap">
+                <svg id="traffic-chart" viewBox="0 0 720 205" role="img" aria-label="API requests per minute chart"></svg>
+            </div>
+        </article>
+        <article class="panel">
+            <div class="panel-head">
+                <div><h2 class="panel-title">Response status</h2><div class="panel-subtitle">Request outcome distribution</div></div>
+            </div>
+            <div class="status-content">
+                <div class="status-summary"><strong id="status-total">--</strong><span>tracked requests</span></div>
+                <div class="status-row"><span class="status-label"><i class="status-swatch"></i>Successful (2xx)</span><strong id="status-success">--</strong></div>
+                <div class="status-row"><span class="status-label"><i class="status-swatch redirect"></i>Redirects (3xx)</span><strong id="status-redirect">--</strong></div>
+                <div class="status-row"><span class="status-label"><i class="status-swatch client"></i>Client errors (4xx)</span><strong id="status-client">--</strong></div>
+                <div class="status-row"><span class="status-label"><i class="status-swatch server"></i>Server errors (5xx)</span><strong id="status-server">--</strong></div>
+                <div class="status-track" aria-hidden="true">
+                    <span class="status-segment status-success" id="bar-success"></span>
+                    <span class="status-segment status-redirect" id="bar-redirect"></span>
+                    <span class="status-segment status-client" id="bar-client"></span>
+                    <span class="status-segment status-server" id="bar-server"></span>
+                </div>
+            </div>
+        </article>
+    </section>
+
+    <section class="panel recent-panel">
+        <div class="panel-head recent-head">
+            <div><h2 class="panel-title">Recent requests</h2><div class="panel-subtitle">Latest API activity captured by this service</div></div>
+            <span class="range-label">LATEST 100</span>
+        </div>
+        <div class="table-wrap">
+            <table>
+                <thead><tr><th>Endpoint</th><th>Method</th><th>Status</th><th>Time</th><th>Duration</th></tr></thead>
+                <tbody id="recent-requests"></tbody>
+            </table>
+            <div class="empty" id="empty-state">Waiting for API requests...</div>
+        </div>
+    </section>
+    <footer class="footer">Traffic data is stored in the selected database and remains available after restarts.</footer>
+</main>
+
+<script>
+    const numberFormat = new Intl.NumberFormat();
+    const safe = (value) => String(value).replace(/[&<>"']/g, (character) => ({
+        "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+    })[character]);
+
+    function renderChart(points) {
+        const svg = document.getElementById("traffic-chart");
+        const width = 720, height = 205, left = 38, right = 8, top = 10, bottom = 27;
+        const plotWidth = width - left - right, plotHeight = height - top - bottom;
+        const values = points.map((point) => point.requests);
+        const max = Math.max(4, ...values);
+        const yMax = Math.ceil(max / 4) * 4;
+        const coordinates = points.map((point, index) => ({
+            x: left + (points.length < 2 ? plotWidth : index * plotWidth / (points.length - 1)),
+            y: top + plotHeight - point.requests / yMax * plotHeight
+        }));
+        const line = coordinates.map((point, index) => `${index === 0 ? "M" : "L"}${point.x.toFixed(1)},${point.y.toFixed(1)}`).join(" ");
+        const area = `${line} L${coordinates.at(-1).x.toFixed(1)},${(top + plotHeight).toFixed(1)} L${coordinates[0].x.toFixed(1)},${(top + plotHeight).toFixed(1)} Z`;
+        const grid = Array.from({ length: 5 }, (_, index) => {
+            const y = top + index * plotHeight / 4;
+            const label = Math.round(yMax * (4 - index) / 4);
+            return `<line class="chart-grid" x1="${left}" y1="${y}" x2="${width - right}" y2="${y}"/><text class="chart-label" x="${left - 9}" y="${y + 3}" text-anchor="end">${label}</text>`;
+        }).join("");
+        const firstTime = points[0] ? new Date(points[0].timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "";
+        const lastTime = points.at(-1) ? new Date(points.at(-1).timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "";
+        svg.innerHTML = `<defs><linearGradient id="chart-fill" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stop-color="#3977e8" stop-opacity=".2"/><stop offset="100%" stop-color="#3977e8" stop-opacity="0"/></linearGradient></defs>${grid}<path class="chart-area" d="${area}"/><path class="chart-line" d="${line}"/><text class="chart-label" x="${left}" y="${height - 3}">${firstTime}</text><text class="chart-label" x="${width - right}" y="${height - 3}" text-anchor="end">${lastTime}</text>`;
+    }
+
+    function renderRequests(requests) {
+        const body = document.getElementById("recent-requests");
+        const empty = document.getElementById("empty-state");
+        if (!requests.length) {
+            body.innerHTML = "";
+            empty.hidden = false;
+            return;
+        }
+        empty.hidden = true;
+        body.innerHTML = requests.map((request) => {
+            const statusClass = request.status >= 500 ? "error" : request.status >= 400 ? "warn" : "";
+            const time = new Date(request.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+            return `<tr><td>${safe(request.path)}</td><td><span class="method">${safe(request.method)}</span></td><td><span class="status-code ${statusClass}">${request.status}</span></td><td>${time}</td><td>${Number(request.durationMs).toFixed(1)} ms</td></tr>`;
+        }).join("");
+    }
+
+    async function refresh() {
+        try {
+            const response = await fetch("/api/traffic/stats", { cache: "no-store" });
+            if (!response.ok) throw new Error(`Traffic API returned ${response.status}`);
+            const data = await response.json();
+            const failed = data.clientErrors + data.serverErrors;
+            document.getElementById("total-requests").textContent = numberFormat.format(data.totalRequests);
+            document.getElementById("successful-requests").textContent = numberFormat.format(data.successfulRequests);
+            document.getElementById("failed-requests").textContent = numberFormat.format(failed);
+            document.getElementById("average-time").textContent = `${Number(data.averageResponseTimeMs).toFixed(1)} ms`;
+            document.getElementById("status-total").textContent = numberFormat.format(data.totalRequests);
+            document.getElementById("status-success").textContent = numberFormat.format(data.successfulRequests);
+            document.getElementById("status-redirect").textContent = numberFormat.format(data.redirectRequests);
+            document.getElementById("status-client").textContent = numberFormat.format(data.clientErrors);
+            document.getElementById("status-server").textContent = numberFormat.format(data.serverErrors);
+            const total = Math.max(1, data.totalRequests);
+            document.getElementById("bar-success").style.width = `${data.successfulRequests / total * 100}%`;
+            document.getElementById("bar-redirect").style.width = `${data.redirectRequests / total * 100}%`;
+            document.getElementById("bar-client").style.width = `${data.clientErrors / total * 100}%`;
+            document.getElementById("bar-server").style.width = `${data.serverErrors / total * 100}%`;
+            renderChart(data.trafficByMinute);
+            renderRequests(data.recentRequests);
+            document.getElementById("last-updated").textContent = `Updated ${new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}`;
+        } catch (error) {
+            document.getElementById("last-updated").textContent = "Unable to load traffic";
+            console.error("Could not refresh API traffic dashboard:", error);
+        }
+    }
+
+    refresh();
+    window.setInterval(refresh, 5000);
+</script>
+</body>
+</html>
